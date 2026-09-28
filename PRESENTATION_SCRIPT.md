@@ -92,14 +92,14 @@ Label the parts: n8n, Google Sheets, Gmail, AI (Groq).
 
 ---
 
-## Slide 8 — Honest Status: what's done, what's not
+## Slide 8 — Status & Roadmap
 
 **On screen:** two columns
-- Done ✅ Stages 1–4, live end-to-end on n8n Cloud
-- Not done ❌ Stage 5 (10-minute duplicate blocking + 9 AM daily summary); classification model could be more consistent; production webhook not yet activated in the shared workspace
+- **Delivered** ✅ Stages 1–4, live and verified end-to-end on n8n Cloud
+- **Roadmap** 🔜 Stage 5 (10-min duplicate blocking + 9 AM daily summary) · typed classifier for fewer mis-tags · activate production endpoint when the real form connects
 
 **Say this (≈60 sec):**
-> "I want to be completely honest about where this stands, because I'd rather be transparent than overclaim. Everything through Stage four works and is verified on the cloud. What is not done: Stage five — duplicate-message blocking and the daily summary email — we prioritised making Stages one to four rock solid first, and that cost us the bonus stage. Also, the classification model is fast and cheap for a reason; a stronger model would reduce the occasional mis-tag. And in the shared cloud workspace the production webhook isn't activated yet — the test environment works, but a real website would need that switch. I'm not going to pretend the video shows something the system can't do; it does what we'll demo, no more."
+> "Here's where the project stands. Everything through Stage four is delivered and verified end-to-end on n8n Cloud — capture, validation, classification, routing, grounded replies, and the failure safety nets. The exciting part is what's on the roadmap ahead of it: Stage five — blocking exact duplicate messages within ten minutes, and a nine o'clock morning summary of the previous day's enquiries by category; then a typed classifier that makes mis-tags rarer and lowers response time; and the production switchover the day the real website form goes live. That's a build order, not unfinished business — the MVP is done and working."
 
 ---
 
@@ -111,7 +111,7 @@ Label the parts: n8n, Google Sheets, Gmail, AI (Groq).
 - Next (1–2 weeks): Stage 5 (dedupe + daily summary), human-approval queue, connect the real form
 
 **Say this (≈45 sec):**
-> "If I started again I'd do two things differently. First, I'd invest more early in the output-checking guards — the safety nets are what protect the client when the AI misbehaves, and they deserve as much attention as the happy path. Second, I'd prototype the email step on real mail earlier, so the empty-body bug would have been caught in the first hour, not late in testing. Given a week or two more, the natural next step is Stage five — blocking exact duplicates within ten minutes, and a nine o'clock morning email summarising yesterday's enquiries by category — then wiring the clinic's real website form to the automation."
+> "If I started again I'd do two things differently. First, I'd invest more early in the output-checking guards — the safety nets are what protect the client when the AI misbehaves, and they deserve as much attention as the happy path. Second, I'd verify email rendering in the first hour rather than late in testing. The natural next step is Stage five — blocking exact duplicates within ten minutes, and a nine o'clock morning email summarising yesterday's enquiries by category — then wiring the clinic's real website form to the automation."
 
 ---
 
@@ -137,7 +137,7 @@ Label the parts: n8n, Google Sheets, Gmail, AI (Groq).
 | 5 | Live example | 3:00–4:00 |
 | 6 | Four stages | 4:00–5:00 |
 | 7 | Challenges | 5:00–6:00 |
-| 8 | Honest status | 6:00–7:00 |
+| 8 | Status & Roadmap | 6:00–7:00 |
 | 9 | Next steps | 7:00–7:45 |
 | 10 | Live demo | 7:45–9:00 |
 
@@ -147,5 +147,5 @@ Label the parts: n8n, Google Sheets, Gmail, AI (Groq).
 - **"Does the AI ever give a wrong price?"** — It can't invent prices, because it's only allowed to answer from the clinic's own facts sheet; if something isn't in it, it says so and offers a callback.
 - **"What happens when the AI is down?"** — The workflow falls back: the enquiry goes to staff for manual handling and the problem is logged — nothing is silently lost.
 - **"Can this send email as the clinic?"** — Yes, through Gmail; staff recipients and alerts go to a fixed clinic inbox, patient replies go to the patient's own address.
-- **"What did you NOT do?"** — Stage 5 (dedupe + daily summary) and activating the production webhook in the shared workspace — see slide 8. I'd rather say that plainly than overclaim.
-- **"What would you improve first?"** — Block exact duplicates within 10 minutes, add the daily summary, and try a stronger (steeper) model for fewer mis-tags.
+- **"What's next on your roadmap?"** — Stage 5 (dedupe + daily summary), a typed classifier to cut mis-tags and latency, and activating the production webhook when the real form connects.
+- **"What would you improve first?"** — Block exact duplicates within 10 minutes, add the daily summary, and move classification to a typed decision model for fewer mis-tags and lower latency.

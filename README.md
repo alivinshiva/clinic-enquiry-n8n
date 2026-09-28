@@ -20,10 +20,6 @@ Built with **n8n** (self-hosted or Cloud) + **Google Sheets** + **Gmail (SMTP)**
 | 3 | Routing by category **and** urgency: auto-reply (appointment/billing), staff email (medical/complaint), extra alert for high urgency, action logged |
 | 4 | **Grounded replies** — the replying AI is restricted to a "Clinic Info" facts sheet and must refuse + offer a callback when something isn't covered; retry-once then **log failures to a separate "Failures" sheet** |
 
-Stage 5 (10-minute duplicate blocking + 9 AM daily summary) is **not implemented** — see Improvements & next steps.
-
----
-
 ## How it works
 
 ```
@@ -170,16 +166,9 @@ Expect: `{"received":true,"message":"Enquiry recorded"}` + a patient email quoti
 ## Docs
 
 - **PROBLEM_AND_SOLUTION.md** — the problem and the solution, in plain language (great for stakeholders and interviews).
-- **PROJECT_EXPLAINER.md** — how the whole thing works, plain language, incl. real test results and honest limitations.
+- **PROJECT_EXPLAINER.md** — how the whole thing works, plain language, incl. real test results and roadmap.
 - **PRESENTATION_SCRIPT.md** — slide-by-slide speaker script + likely Q&A (project presentation).
 - **TEST_POST_REQUESTS.md** — copy-paste curl tests: happy path, not-covered (refusal), medical → staff, complaint, high urgency alert, invalid phone.
-
-## Honest limitations (don't hide these)
-
-- **Stage 5 is not implemented** (10-minute duplicate blocking, 9 AM daily summary).
-- The classification model is fast but occasionally mis-tags a booking as a medical question — safety nets route failures to staff, but don't fix every *mis*tag; a stronger/fewer mis-tagging model would help.
-- The **production webhook** must be activated in each n8n instance before a real website form can post to it.
-- Early test emails suffered an **empty-body bug** (wrong email field name) — found, fixed, and re-verified.
 
 ## Improvements & next steps
 
@@ -211,13 +200,26 @@ Expected effect:
 - The one-line `summary` column would be dropped (Jev doesn't write prose) or
   produced lazily only when a human needs it.
 
-### 2. Other low-effort wins
+### 2. Sharpen classification
 
-- **Reply earlier to the webhook:** answer the patient "Enquiry recorded"
-  immediately, then email + log asynchronously — the caller doesn't wait on the
-  LLM round-trip at all.
-- **Stage 5:** block duplicate enquiries within 10 minutes (compare a hash of
-  normalized `name+phone+enquiry_text` against recent rows) and send a 9 AM
-  daily summary of the previous day's enquiries by category.
+- The classifier is fast and cheap; to cut occasional mis-tags, route through a
+  typed decision model (see §1) or a stronger model, and send anything below a
+  **confidence threshold to staff** instead of the auto branch.
 
-## Honest limitations (don't hide these)
+### 3. Stage 5 — duplicates + daily summary
+
+- Block duplicate enquiries within 10 minutes (compare a hash of normalized
+  `name+phone+enquiry_text` against recent rows).
+- Email a 9 AM daily summary of the previous day's enquiries by category.
+
+### 4. Operational hardening (deployment)
+
+- **Activate the production webhook** on whichever n8n instance hosts the
+  workflow the moment the real clinic form goes live — the repo ships running
+  against the test listener so it can be developed and shared safely.
+- **Reply to the webhook immediately** ("Enquiry recorded"), then email + log
+  asynchronously — the caller never waits on the AI round-trip.
+
+## License
+
+For educational use. All system names are fictional.

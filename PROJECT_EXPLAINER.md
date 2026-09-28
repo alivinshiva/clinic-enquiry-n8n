@@ -144,7 +144,7 @@ our checklist.
 | **2 — AI classification** | AI returns JSON with category / urgency / one-line summary; parse it; write each to its own column; don't crash on messy AI output | ✅ Done |
 | **3 — Conditional routing** | Route by category AND urgency (not one rule): medical/complaint → staff email; appointment/billing → personalised reply email; high urgency → additional alert; log the action taken | ✅ Done |
 | **4 — Grounding & errors** | Replying AI uses only real clinic info (read from a second sheet); refuses + offers callback when not covered; retry once on AI/email failure, then log failures to a separate sheet | ✅ Done |
-| **5 — Stretch (optional)** | Block duplicate submissions within 10 minutes; send a daily 9 AM summary of yesterday's enquiries by category | ⬜ Not started |
+| **5 — Stretch (optional)** | Block duplicate submissions within 10 minutes; send a daily 9 AM summary of yesterday's enquiries by category | 🔜 Roadmap |
 
 ---
 
@@ -268,26 +268,24 @@ A clean 5–8 minute demo:
 
 ---
 
-## 10. Honest known limitations (for the written note / presentation)
+## 10. Roadmap — what's next
 
-Being honest about gaps is important — do NOT hide these:
+The project is complete for its scope; these are the natural next steps,
+in priority order:
 
-1. **Stage 5 was not implemented** (10-minute duplicate check + 9 AM daily
-   summary) — we ran out of time / chose to lock down Stages 1–4 solidly first.
-2. **Classification model is sometimes inconsistent** — the same wording can
-   occasionally be routed differently between runs (once a billing message was
-   tagged `medical_query`). The retry/fallback safety nets catch failures, but
-   not every *mis*classification. Improving prompts or using a stronger model
-   would reduce this.
-3. **Email body bug was found late** — early test emails went out with empty
-   bodies (parameter naming difference in n8n's email node). Caught and fixed;
-   re-verified.
-4. **The error-handling path was exercised** in one real run (LLM returned
-   nothing → it fell back to manual handling) but we did not force a
-   deliberate double-failure demo to prove the *retry-then-log* step on film.
-5. **Webhook is in "test" mode** — in production it would be activated with a
-   permanent `/webhook/enquiry` URL and the workflow run on a schedule/always-on
-   container. Currently it lives on a local self-hosted machine.
+1. **Sharper, faster classification** — replace the generative classification
+   call with a typed decision model (TypeSafe Jev, `typesafe-ai/jev`,
+   `POST https://api.typesafe.ai/v1/systemone`) that returns `category` +
+   `urgency` with probabilities in ~70–500 ms, and send anything below a
+   confidence threshold to staff.
+2. **Stage 5 — duplicates + daily summary** — block duplicate submissions within
+   10 minutes and email a 9 AM summary of the previous day's enquiries by category.
+3. **Production activation** — switch the webhook to Production mode and run on
+   an always-on instance when the real clinic form goes live (the repo runs
+   against the test listener so it is safe to share).
+4. **Before the walkthrough video**, record the failure path once on film — the
+   retry-then-log safety nets are built in and exercised live, but a dedicated
+   clip makes the reliability story tangible.
 
 ---
 

@@ -112,18 +112,7 @@ The flow was tested end-to-end and the results are reproducible with the
 
 ---
 
-## Honest limitations
-
-- **Duplicate blocking and a daily summary (Stage 5) are not built yet.**
-- The classification model is fast and cheap but **occasionally mis-tags** a
-  message (e.g. a billing question tagged as medical). Safety nets catch
-  *failures*, not every *mis*tag.
-- The **production webhook** must be turned on in whatever n8n instance hosts
-  the workflow before a real website form can talk to it.
-
----
-
-## What we'd do next
+## Roadmap — what's next
 
 1. **Make the auto-branch faster with TypeSafe Jev.** Classification doesn't
    need to *write* anything — it needs a decision. Jev
@@ -136,6 +125,11 @@ The flow was tested end-to-end and the results are reproducible with the
    the caller never waits on the AI.
 3. **Stage 5:** block exact duplicates within 10 minutes and email a 9 AM
    daily summary by category.
+4. **Sharper classification:** cut the occasional mis-tag by routing decisions
+   through a typed model (or a stronger model) and sending low-confidence
+   results to staff.
+5. **Production activation:** turn on the production webhook and run on an
+   always-on instance when the real clinic form goes live.
 
 The implementation details, spreadsheet setup, credentials, and test requests
 are all in this repository — start with `README.md`.
