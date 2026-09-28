@@ -11,7 +11,7 @@ Built with **n8n** (self-hosted or Cloud) + **Google Sheets** + **Gmail (SMTP)**
 
 ---
 
-## Features (assignment stages 1–4)
+## Features (development stages 1–4)
 
 | Stage | Feature |
 |---|---|
@@ -20,7 +20,7 @@ Built with **n8n** (self-hosted or Cloud) + **Google Sheets** + **Gmail (SMTP)**
 | 3 | Routing by category **and** urgency: auto-reply (appointment/billing), staff email (medical/complaint), extra alert for high urgency, action logged |
 | 4 | **Grounded replies** — the replying AI is restricted to a "Clinic Info" facts sheet and must refuse + offer a callback when something isn't covered; retry-once then **log failures to a separate "Failures" sheet** |
 
-Stage 5 (10-minute duplicate blocking + 9 AM daily summary) is **not implemented** — see Honest limitations.
+Stage 5 (10-minute duplicate blocking + 9 AM daily summary) is **not implemented** — see Improvements & next steps.
 
 ---
 
@@ -61,10 +61,10 @@ Patient form (POST /webhook/enquiry)
 │                               ← earlier exports (reference)
 ├── docker-compose.yml          ← self-hosted n8n via Docker (needs Dockerfile)
 ├── Dockerfile                  ← n8n + python image for the compose file
+├── PROBLEM_AND_SOLUTION.md     ← the problem and the solution, in plain terms
 ├── PROJECT_EXPLAINER.md        ← full plain-language project write-up
 ├── PRESENTATION_SCRIPT.md      ← 10-slide presentation script + Q&A
-├── TEST_POST_REQUESTS.md       ← copy-paste curl tests with expected results
-└── APJ_Technical_Assessment_n8n.pdf
+└── TEST_POST_REQUESTS.md       ← copy-paste curl tests with expected results
 ```
 
 ---
@@ -169,8 +169,9 @@ Expect: `{"received":true,"message":"Enquiry recorded"}` + a patient email quoti
 
 ## Docs
 
+- **PROBLEM_AND_SOLUTION.md** — the problem and the solution, in plain language (great for stakeholders and interviews).
 - **PROJECT_EXPLAINER.md** — how the whole thing works, plain language, incl. real test results and honest limitations.
-- **PRESENTATION_SCRIPT.md** — slide-by-slide speaker script + likely Q&A (assessment presentation).
+- **PRESENTATION_SCRIPT.md** — slide-by-slide speaker script + likely Q&A (project presentation).
 - **TEST_POST_REQUESTS.md** — copy-paste curl tests: happy path, not-covered (refusal), medical → staff, complaint, high urgency alert, invalid phone.
 
 ## Honest limitations (don't hide these)
@@ -180,6 +181,43 @@ Expect: `{"received":true,"message":"Enquiry recorded"}` + a patient email quoti
 - The **production webhook** must be activated in each n8n instance before a real website form can post to it.
 - Early test emails suffered an **empty-body bug** (wrong email field name) — found, fixed, and re-verified.
 
-## License
+## Improvements & next steps
 
-For educational/assessment use. All system names are fictional.
+### 1. Cut response time with TypeSafe Jev (System One model)
+
+Today the auto branch makes **two generative LLM calls**: one to classify the
+enquiry, then one to write the reply. Classification doesn't actually need to
+generate text — it only needs a *decision*. TypeSafe's **Jev** model
+(`typesafe-ai/jev`, endpoint `POST https://api.typesafe.ai/v1/systemone`) is a
+"System One" decision model: it reads the enquiry plus typed questions and
+returns **typed answers with probabilities in ~70–500 ms** — no JSON parsing,
+no malformed-output branch, nothing to clean up.
+
+> `state`: the patient enquiry
+> `questions`:
+> - `category`: **choice** → `appointment | billing | medical_query | complaint | other`
+> - `urgency`: **choice** → `high | medium | low`
+>
+> ↦ typed answers like `{ category: "billing", confidence: 0.98 }` and
+>   `{ urgency: "low", ... }` that the workflow branches on directly.
+
+Expected effect:
+- **Classification drops from a ~1–2 s generative call plus JSON-cleanup logic
+  to a sub-second typed call** — and the fallback-classifier node can be removed.
+- The generative Groq model stays **only for composing the grounded patient
+  reply** — the one step that genuinely needs natural language.
+- Jev is served by the TypeSafe API, Vercel AI Gateway, OpenRouter, and
+  Cloudflare Workers AI, and plugs into n8n as a plain HTTP Request node.
+- The one-line `summary` column would be dropped (Jev doesn't write prose) or
+  produced lazily only when a human needs it.
+
+### 2. Other low-effort wins
+
+- **Reply earlier to the webhook:** answer the patient "Enquiry recorded"
+  immediately, then email + log asynchronously — the caller doesn't wait on the
+  LLM round-trip at all.
+- **Stage 5:** block duplicate enquiries within 10 minutes (compare a hash of
+  normalized `name+phone+enquiry_text` against recent rows) and send a 9 AM
+  daily summary of the previous day's enquiries by category.
+
+## Honest limitations (don't hide these)

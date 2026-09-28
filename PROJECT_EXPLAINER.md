@@ -8,7 +8,7 @@
 
 ## 1. TL;DR — what is this project?
 
-A dental clinic (fictional, for an assessment) receives enquiries from patients
+A dental clinic (fictional, used as a case study) receives enquiries from patients
 through its website form — things like *"how much does teeth whitening cost?"*,
 *"I want to book for Saturday"*, or *"my tooth hurts, should I come in?"*.
 
@@ -133,9 +133,9 @@ made-up answer.
 
 ---
 
-## 5. The stages of the assignment — status
+## 5. The stages of the build — status
 
-The assessment is built in 5 increasing-difficulty stages. We used those as
+The clinic brief defined 5 increasing-difficulty stages. We used those as
 our checklist.
 
 | Stage | What it asks | Status |
@@ -261,8 +261,7 @@ A clean 5–8 minute demo:
    (`auto-replied`).
 4. Run **Test B** (implants) → show the "we don't have that / call us" reply.
 5. Run **Test C** (pain/sensitivity) → show the **manual-handling** case:
-   staff email + `manual handling` row. *(The assignment specifically asks to
-   include a manual-handling case.)*
+   staff email + `manual handling` row. *(Include a manual-handling case — it proves the routing works.)*
 6. Run **Test D** (bad phone) → show the clean 400 rejection.
 7. Optionally: show a row landing in the **Failures** tab (explain "if
    something fails twice, it lands here instead of dying silently").
@@ -271,7 +270,7 @@ A clean 5–8 minute demo:
 
 ## 10. Honest known limitations (for the written note / presentation)
 
-Being honest about gaps is explicitly part of the assessment — do NOT hide these:
+Being honest about gaps is important — do NOT hide these:
 
 1. **Stage 5 was not implemented** (10-minute duplicate check + 9 AM daily
    summary) — we ran out of time / chose to lock down Stages 1–4 solidly first.
@@ -309,8 +308,7 @@ Being honest about gaps is explicitly part of the assessment — do NOT hide the
 
 ## 12. Suggested presentation outline (7 slides, 8–10 min)
 
-Mirrors the assignment's suggested structure; each bullet is a talking point
-in one plain sentence:
+A suggested structure; each bullet is a talking point in one plain sentence:
 
 1. **The problem** — a clinic reads/replies to every form enquiry by hand:
    slow, inconsistent, no after-hours coverage.

@@ -1,6 +1,6 @@
 # n8n Clinic Enquiry Automation — Presentation Script (8–10 min)
 
-Use this as your speaker script for the assessment presentation. Each slide below has:
+Use this as your speaker script for the project presentation. Each slide below has:
 **On screen** (what to put on the slide) and **Say this** (your spoken words, written to be read aloud naturally).
 Total speaking time is around 8–9 minutes; rehearse once with a timer. Keep it conversational — you do not need technical detail.
 
