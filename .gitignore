@@ -1,0 +1,4 @@
+# Local n8n instance data (DB, credentials, logs) — never commit
+n8n_data/
+
+.DS_Store

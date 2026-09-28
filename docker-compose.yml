@@ -1,0 +1,15 @@
+services:
+  n8n:
+    build: .
+    image: n8n-python
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - TZ=Asia/Kolkata
+      - N8N_HOST=localhost
+    volumes:
+      - ./n8n_data:/home/node/.n8n

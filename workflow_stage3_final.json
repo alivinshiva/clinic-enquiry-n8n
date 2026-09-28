@@ -1,0 +1,786 @@
+{
+  "name": "Clinic Enquiries - Stage 3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enquiry",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -272,
+        32
+      ],
+      "id": "19d8bf59-7c16-4153-95fe-fd12b3ad09e7",
+      "name": "Webhook",
+      "webhookId": "2b7b5d05-52de-4db4-b6c0-83f21e989d81"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body ?? $json;\n\nconst name = input.name;\nconst phone = input.phone ? String(input.phone) : '';\nconst email = input.email ? String(input.email) : '';\nconst enquiry = input.enquiry_text || input.enquiry || '';\n\nconst nameMissing = !name || name.toString().trim() === '';\nconst phoneDigits = phone.replace(/\\D/g, '');\nconst phoneValid = /^[6-9]\\d{9}$/.test(phoneDigits);\n\nconst errors = [];\nif (nameMissing) errors.push('Name is required.');\nif (phone === '') errors.push('Phone number is required.');\nelse if (!phoneValid) errors.push('Phone number must be a valid 10-digit Indian mobile number.');\n\nreturn {\n  json: {\n    name: name ? name.toString().trim() : '',\n    phone,\n    email,\n    enquiry_text: enquiry,\n    valid: errors.length === 0,\n    error_message: errors.join(' ')\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        32
+      ],
+      "id": "c4c262cd-91ca-492f-af7e-da968beac3fc",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1f5952c8-4209-4640-abdf-3ccbae88980f",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        176,
+        32
+      ],
+      "id": "73364b38-bc31-4ada-b498-399400f90949",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"error\": \"{{ $json.error_message }}\", \"received\": false }",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        784,
+        128
+      ],
+      "id": "51c24f6a-8d33-4527-9365-a9551011eb92",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"received\": true, \"message\": \"Enquiry recorded\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1008,
+        -16
+      ],
+      "id": "db862f04-2195-4500-bf6c-be25f862daee",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Classify this clinic enquiry. Reply with VALID JSON only, no markdown, no code fences, no extra text:\n{\"category\":\"appointment|billing|medical_query|complaint|other\",\"urgency\":\"high|medium|low\",\"summary\":\"one short line\"}\ncategory: appointment=bookings, billing=payments/fees, medical_query=health questions, complaint=complaint, else other. urgency: high only if health risk or urgent.\nEnquiry: {{ $json.enquiry_text }}",
+        "messages": {
+          "messageValues": []
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        560,
+        -192
+      ],
+      "id": "7665b973-6144-41b3-a48f-801c2742208d",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3.8-27b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        432,
+        -176
+      ],
+      "id": "71f4810d-997f-4181-a1e3-8cbbab2cbcf4",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "wxLFFSwF2pil1dDQ",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = String(\n  $json.output?.text ??\n  $json.message?.content ??\n  $json.response?.content ??\n  $json.content ??\n  $json.output ??\n  $json.text ??\n  ''\n);\n\nconst original = $('Code in JavaScript').first().json;\n\nconst fallback = {\n  category: 'other',\n  urgency: 'low',\n  summary: 'Could not classify: ' + raw.slice(0, 120),\n  parse_success: false\n};\n\ntry {\n  let text = raw.replace(/```(?:json)?\\s*/gi, '').replace(/```/g, '');\n  const start = text.indexOf('{');\n  const end = text.lastIndexOf('}');\n  if (start === -1 || end === -1 || end < start) {\n    return { json: { ...original, ...fallback, route: 'manual', ai_raw: text.slice(0, 500) } };\n  }\n  const parsed = JSON.parse(text.slice(start, end + 1));\n  const category = ['appointment', 'billing', 'medical_query', 'complaint', 'other']\n    .includes(String(parsed.category || '').toLowerCase())\n    ? String(parsed.category).toLowerCase()\n    : 'other';\n  const urgency = ['high', 'medium', 'low']\n    .includes(String(parsed.urgency || '').toLowerCase())\n    ? String(parsed.urgency).toLowerCase()\n    : 'low';\n  return {\n    json: {\n      ...original,\n      category,\n      urgency,\n      summary: String(parsed.summary || '').trim() || fallback.summary,\n      parse_success: true,\n      route: ['appointment', 'billing'].includes(category) ? 'auto' : 'manual'\n    }\n  };\n} catch (e) {\n  return { json: { ...original, ...fallback, route: 'manual', parse_error: e.message } };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        -176
+      ],
+      "id": "cfdcedb1-560d-4832-9bf9-f1114b132b70",
+      "name": "Parse classification"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "If urgency high-c1",
+              "leftValue": "={{ $json.urgency }}",
+              "rightValue": "high",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1392,
+        240
+      ],
+      "id": "bd7d9b2f-3ad2-4214-864b-e9a351585d12",
+      "name": "If urgency high"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "If route auto-c1",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "auto",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1392,
+        240
+      ],
+      "id": "944e4b5d-6b4b-4dfe-bebb-363946aef613",
+      "name": "If route auto"
+    },
+    {
+      "parameters": {
+        "fromEmail": "driftershots@gmail.com",
+        "toEmail": "driftershots@gmail.com",
+        "subject": "=URGENT enquiry - {{ $json.name }}",
+        "emailFormat": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1728,
+        336
+      ],
+      "id": "41ae7561-0327-470e-a8c1-965d98807fe5",
+      "name": "Send alert (high urgency)",
+      "webhookId": "fa36a30f-214c-4a6f-85e2-ba0ffb98d38b",
+      "credentials": {
+        "smtp": {
+          "id": "kBH8W6DyEhJlgNE0",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "driftershots@gmail.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "=Re: your enquiry to the clinic",
+        "emailFormat": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1728,
+        -80
+      ],
+      "id": "e7c11eb8-e477-4477-bf2b-a5282d3d5d00",
+      "name": "Email patient (auto-reply)",
+      "webhookId": "b60a4441-d1c2-44c6-98d9-297a2160673c",
+      "credentials": {
+        "smtp": {
+          "id": "kBH8W6DyEhJlgNE0",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "driftershots@gmail.com",
+        "toEmail": "driftershots@gmail.com",
+        "subject": "=Manual handling needed: {{ $json.category }} ({{ $json.urgency }})",
+        "emailFormat": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1728,
+        128
+      ],
+      "id": "9a5d10c9-9e53-4724-861a-b89915dd510c",
+      "name": "Email staff (manual handling)",
+      "webhookId": "8a3c58ee-fb12-49bc-ae55-1302bb47b044",
+      "credentials": {
+        "smtp": {
+          "id": "kBH8W6DyEhJlgNE0",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1ifPd8vpigHKEPDRib3g-3kwsR3Sz4vUVmUqAtwY6WC0",
+          "mode": "list",
+          "cachedResultName": "Clinic Enquiries ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ifPd8vpigHKEPDRib3g-3kwsR3Sz4vUVmUqAtwY6WC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ifPd8vpigHKEPDRib3g-3kwsR3Sz4vUVmUqAtwY6WC0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $('Parse classification').first().json.name }}",
+            "phone": "={{ $('Parse classification').first().json.phone }}",
+            "email": "={{ $('Parse classification').first().json.email }}",
+            "enquiry_text": "={{ $('Parse classification').first().json.enquiry_text }}",
+            "category": "={{ $('Parse classification').first().json.category }}",
+            "urgency": "={{ $('Parse classification').first().json.urgency }}",
+            "summary": "={{ $('Parse classification').first().json.summary }}",
+            "action": "auto-replied",
+            "action_timestamp": "={{ new Date().toISOString() }}",
+            "timestamp": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "enquiry_text",
+              "displayName": "enquiry_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_timestamp",
+              "displayName": "action_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2336,
+        -80
+      ],
+      "id": "36071958-370d-4c46-b8cd-e3858aeaafa1",
+      "name": "Append auto-replied",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fuQmuKirhajO1oxW",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1ifPd8vpigHKEPDRib3g-3kwsR3Sz4vUVmUqAtwY6WC0",
+          "mode": "list",
+          "cachedResultName": "Clinic Enquiries ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ifPd8vpigHKEPDRib3g-3kwsR3Sz4vUVmUqAtwY6WC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ifPd8vpigHKEPDRib3g-3kwsR3Sz4vUVmUqAtwY6WC0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $('Parse classification').first().json.name }}",
+            "phone": "={{ $('Parse classification').first().json.phone }}",
+            "email": "={{ $('Parse classification').first().json.email }}",
+            "enquiry_text": "={{ $('Parse classification').first().json.enquiry_text }}",
+            "category": "={{ $('Parse classification').first().json.category }}",
+            "urgency": "={{ $('Parse classification').first().json.urgency }}",
+            "summary": "={{ $('Parse classification').first().json.summary }}",
+            "action": "manual handling",
+            "action_timestamp": "={{ new Date().toISOString() }}",
+            "timestamp": "={{ new Date().toISOString() }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "enquiry_text",
+              "displayName": "enquiry_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "urgency",
+              "displayName": "urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action",
+              "displayName": "action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "action_timestamp",
+              "displayName": "action_timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2336,
+        128
+      ],
+      "id": "f3c035a2-5c10-4af5-845d-053f626efbff",
+      "name": "Append manual handling",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fuQmuKirhajO1oxW",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"received\": true, \"message\": \"Handled\" }",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2928,
+        -80
+      ],
+      "id": "5af2fc13-bfc5-417a-92c9-4dd01a4eb527",
+      "name": "Respond to Webhook2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse classification": {
+      "main": [
+        [
+          {
+            "node": "If urgency high",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If route auto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If urgency high": {
+      "main": [
+        [
+          {
+            "node": "Send alert (high urgency)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If route auto": {
+      "main": [
+        [
+          {
+            "node": "Email patient (auto-reply)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email staff (manual handling)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email patient (auto-reply)": {
+      "main": [
+        [
+          {
+            "node": "Append auto-replied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append auto-replied": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email staff (manual handling)": {
+      "main": [
+        [
+          {
+            "node": "Append manual handling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append manual handling": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "acfc5459-7cbd-4673-848e-dc11b09c2f3e",
+  "meta": {
+    "instanceId": "14c811acf8636e44a91e250c387189be5d9b1d92d594146de11073ef83f7d467"
+  },
+  "nodeGroups": [],
+  "id": "qAwyK0uOmVZCfS87",
+  "tags": []
+}
